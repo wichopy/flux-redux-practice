@@ -1,19 +1,77 @@
-import { Dispatcher } from './flux';
+import { Dispatcher, Store } from './flux';
 
 const controlPanelDispatcher = new Dispatcher();
 
+const UPDATE_USERNAME = 'UPDATE_USERNAME';
+const UPDATE_FONT_SIZE_PREFERENCE = 'UPDATE_FONT_SIZE_PREFERENCE';
+
+const userNameUpdateAction = (name) => {
+  return {
+    type: UPDATE_USERNAME,
+    value: name
+  }
+}
+
+const fontSizePreferenceUpdateAction = (size) => {
+  return {
+    type: UPDATE_FONT_SIZE_PREFERENCE,
+    value: size
+  }
+}
 document.getElementById('userNameInput').addEventListener('input', ({ target }) => { //takes in an object, but only care about the target property.
   const name = target.value;
   console.log(`Dispatching...${name}`)
-  controlPanelDispatcher.dispatch(`TODO_NAMEINPUTACTION`);
+  controlPanelDispatcher.dispatch(userNameUpdateAction(name));
 })
 
 document.forms.fontSizeForm.fontSize.forEach(element => {
   element.addEventListener('change', ({ target }) => {
-    controlPanelDispatcher.dispatch(`TODO_FONTUPDATEACTION`);
+    console.log('Changing to ...', target.value)
+    controlPanelDispatcher.dispatch(fontSizePreferenceUpdateAction(target.value));
   })
 })
 
-controlPanelDispatcher.register(action => {
-  console.info(`Received action...${action}`)
+class UserPrefStore extends Store {
+  getInitialState() {
+    return localStorage['preferences'] ?
+      JSON.parse(localStorage['preferences']) : {
+        userName: 'Jim',
+        fontSize: 'small'
+      }
+  }
+  __onDispatch(action) {
+    console.log('State received dispatch', action)
+    switch (action.type) {
+      case UPDATE_USERNAME:
+        this.__state.userName = action.value;
+        this.__emitChange();
+        break;
+      case UPDATE_FONT_SIZE_PREFERENCE:
+        this.__state.fontSize = action.value;
+        this.__emitChange();
+        break;
+    }
+  }
+  getUserPrefrences() {
+    return this.__state;
+  }
+}
+
+const userPrefStore = new UserPrefStore(controlPanelDispatcher)
+
+userPrefStore.addListener((state) => {
+  console.info('The current state is...', state)
+  render(state)
+  localStorage['preferences'] = JSON.stringify(state);
 })
+
+const render = ({ userName, fontSize }) => {
+  document.getElementById('userName').innerText = userName;
+  document.getElementsByClassName('container')[0].style.fontSize = fontSize === 'small' ? '16px' : '24px';
+  document.forms.fontSizeForm.fontSize.value = fontSize;
+}
+
+render(userPrefStore.getUserPrefrences())
+  // controlPanelDispatcher.register(action => {
+  //   console.info(`Received action...${action}`)
+  // })
